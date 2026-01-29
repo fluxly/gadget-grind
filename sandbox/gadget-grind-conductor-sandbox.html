@@ -16,22 +16,20 @@
 </head>
 <body>
     <div id="page">
-        <gadget-grind-assembly id="gadget-1" icon="💿"></gadget-grind-assembly>
-        <gadget-grind-assembly id="gadget-2" icon="😉"></gadget-grind-assembly>
-        <gadget-grind-assembly id="gadget-3" icon="🐼"></gadget-grind-assembly>
+        <gadget-grind-conductor id="conductor-1"></gadget-grind-conductor>
     </div>
 
     <div id="controls">
-        <button id="test-1">Test</button>
+        <button id="step">Step</button>
     </div>
 </body>
 <script type="module">
 
-    function messageTest() {
-        window.GadgetGrindMessenger.sendMessage('gadget-1', 'test', 'foo')
-        console.log('send message!');
+    function step() {
+        window.GadgetGrindMessenger.sendMessage('conductor-1', 'step', '')
     }
 
-    document.querySelector('#test-1').addEventListener('click', messageTest);
+    document.querySelector('#step').addEventListener('click', step);
+
 </script>
 </html>

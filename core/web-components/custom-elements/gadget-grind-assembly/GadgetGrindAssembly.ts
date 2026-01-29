@@ -8,15 +8,18 @@ export class GadgetGrindAssembly extends GadgetGrindElement {
         <style>
             #container {
                 user-select: none; 
-                font-size: 72px;
-                margin: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 5px;
             }
         </style>
         `;
   
     static readonly html = `
         <div id="container">
-        🧶
+            <div id="icon">🧶</div>
+            <div id="components"></div>
         </div>
         `;
 
@@ -52,7 +55,8 @@ export class GadgetGrindAssembly extends GadgetGrindElement {
   
     setup = () => {
         this.observedMessages = [];
-        this.subscribe(this.observedMessages);   
+        this.subscribe(this.observedMessages); 
+        this.shadowRoot!.querySelector('#icon')!.innerHTML = (this.icon as string);
     }
     
     teardown = () => {

@@ -16,22 +16,26 @@
 </head>
 <body>
     <div id="page">
-        <gadget-grind-assembly id="gadget-1" icon="💿"></gadget-grind-assembly>
-        <gadget-grind-assembly id="gadget-2" icon="😉"></gadget-grind-assembly>
-        <gadget-grind-assembly id="gadget-3" icon="🐼"></gadget-grind-assembly>
+        <gadget-grind-conveyor id="conveyor-1" length="6"></gadget-grind-conveyor>
+        <gadget-grind-conveyor id="conveyor-2" length="8"></gadget-grind-conveyor>
     </div>
 
     <div id="controls">
-        <button id="test-1">Test</button>
+        <button id="step-1">Step 1</button>
+        <button id="step-2">Step 2</button>
     </div>
 </body>
 <script type="module">
 
-    function messageTest() {
-        window.GadgetGrindMessenger.sendMessage('gadget-1', 'test', 'foo')
-        console.log('send message!');
+    function step1() {
+        window.GadgetGrindMessenger.sendMessage('conveyor-1', 'step', '')
+    }
+    function step2() {
+        window.GadgetGrindMessenger.sendMessage('conveyor-2', 'step', '')
     }
 
-    document.querySelector('#test-1').addEventListener('click', messageTest);
+    document.querySelector('#step-1').addEventListener('click', step1);
+    document.querySelector('#step-2').addEventListener('click', step2);
+
 </script>
 </html>

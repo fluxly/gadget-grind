@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0,user-scalable=0"/>
+    <link rel="icon" type="image/x-icon" href="../images/favicon.ico">
+    <title>Sandbox</title>
+    <link rel="stylesheet" href="../styles/styles.css">
+    <script type="module" src="../bundle.js"></script>
+    <style>
+        #controls {
+            position: absolute;
+            bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="page">
+        <gadget-grind-worker id="worker-1"></gadget-grind-worker>
+        <gadget-grind-worker id="worker-2"></gadget-grind-worker>
+        <gadget-grind-worker icon="🐼" id="worker-3"></gadget-grind-worker>
+    </div>
+
+    <div id="controls">
+        <button id="step">Step</button>
+        <button id="take-assembly">Take Assembly</button>
+    </div>
+</body>
+<script type="module">
+
+    function step() {
+        window.GadgetGrindMessenger.sendMessage('worker-1', 'step', '')
+    }
+    function takeAssembly() {
+        window.GadgetGrindMessenger.sendMessage('worker-1', 'take-assembly', 'foo')
+    }
+
+    document.querySelector('#step').addEventListener('click', step);
+    document.querySelector('#take-assembly').addEventListener('click', takeAssembly);
+
+</script>
+</html>
