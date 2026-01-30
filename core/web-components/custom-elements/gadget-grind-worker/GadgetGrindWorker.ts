@@ -5,16 +5,7 @@ import sharedStyles from '../../common/shared-styles';
 export class GadgetGrindWorker extends GadgetGrindElement {
 
     static readonly inventoryMax = 2;
-    static readonly recipe = {
-        components: [ '🏵', '🍔' ],
-        output: '📠'
-    };
-    static profile = {
-        strength: 16,
-        dexterity: 16,
-        charisma: 10,
-        affiliation: 'international workers of the world'
-    };
+
     static readonly localStyles = `
         <style>
             #container {
@@ -24,8 +15,8 @@ export class GadgetGrindWorker extends GadgetGrindElement {
                 border: 1px dotted red;
                 display: flex;
                 flex-direction: column;
-                justify-content: center;
                 align-items: center;
+                min-height: 150px;
             }
             #icon {
                 font-size: 36px;
@@ -33,7 +24,7 @@ export class GadgetGrindWorker extends GadgetGrindElement {
             #inventory, #status {
                 display: flex;
                 border: none;
-                font-size: 12px;
+                font-size: 14px;
             }
             .status {
                 display: none;
@@ -48,24 +39,36 @@ export class GadgetGrindWorker extends GadgetGrindElement {
         <div id="container">
             <div id="status">
                 <span id="ready" class="status status-active">🟢</span>
-                <span id="busy" class="status">🔴</span>
+                <span id="complete" class="status">🔴</span>
                 <span id="making" class="status">🟡</span>
             </div>
             <div id="icon"></div>
             <div id="inventory">
-                <gadget-grind-assembly icon="🏵"></gadget-grind-assembly>
-                <gadget-grind-assembly icon="🍔"></gadget-grind-assembly>
             </div>
         </div>
         `;
 
     private container: HTMLElement | null = null;
+    private inventoryContainer: HTMLElement | null = null;
     private icon: string | null = null;
-    private status: string | null = 'ready';
-    private weight: number | null = 100;
-    private workTime: number | null = 4;
-    private workCount: number | null = 0;
-    private inventory: string[] | null = [];
+    private status: string = 'ready';
+    private weight: number = 100;
+    private workTime: number = 4;
+    private workCount: number = 0;
+    private inventory: HTMLElement[] = [];
+    private wishlist: string[] = [];
+    private completed: HTMLElement[] = [];
+    private profile = {
+        strength: 16,
+        dexterity: 16,
+        charisma: 10,
+        affiliation: 'international workers of the world'
+    };
+    private recipe = {
+        components: [ '🏵', '🍔' ],
+        time: 4,
+        output: '<gadget-grind-assembly icon="📠"></gadget-grind-assembly>'
+    };
 
     static get observedAttributes(): string[] { 
         return [...super.baseObservedAttributes, 'icon' ];
@@ -98,27 +101,66 @@ export class GadgetGrindWorker extends GadgetGrindElement {
     setup = () => {
         this.observedMessages = [`${this.id}`];
         this.subscribe(this.observedMessages); 
+        this.inventoryContainer = this.shadowRoot!.querySelector('#inventory');
         this.shadowRoot!.querySelector('#icon')!.innerHTML = (this.icon as string);
         this.addEventListener(`${this.id}`, this.handleEvent);
         this.setStatus('ready');
+        this.wishlist = this.recipe.components.slice();   // copy array
+        console.log(this.wishlist);
     }
     
     teardown = () => {
         this.unsubscribe(this.observedMessages);
     }
 
-    handleStep = (assembly: string) => {
+    handleStep = () => {
         console.log('handle step');
-        console.log(assembly);
+        if (this.status === 'making') {
+            this.workCount++;
+            console.log(this.workCount);
+            if (this.workCount === this.workTime) {
+                this.finishProduct();
+            }
+        }
+        this.setWishlist();
+    }
+
+    finishProduct() {
+        // finished product
+        const template = document.createElement('template');
+        template.innerHTML = this.recipe.output;
+        const product = (template.content.firstElementChild?.cloneNode(true) as HTMLElement);
+        this.inventoryContainer!.appendChild(product);
+        // Move assemblies to the product
+        for (let item of this.inventory) {
+            console.log(item);
+            product.appendChild(item);
+            console.log(product);
+        }
+        this.inventory = [];
+        this.completed.push(product);
+        console.log(this.completed);
+        this.setStatus('complete');
     }
 
     handleEvent = (evt: any) => {
         console.log(`${evt.type} ${evt.detail.cmd}`);
         if (evt.detail.cmd === 'step') {
-            this.handleStep(evt.detail.content);
+            this.handleStep();
         }
-        if (evt.detail.cmd === 'take-assembly') {
-            console.log('take assembly');
+        if (evt.detail.cmd === 'pull-request') {
+            console.log('pull-request');
+            if (this.wishlist.length === 0) return;
+            let assembly = evt.detail.content;
+            this.inventory?.push(assembly);
+            this.inventoryContainer?.appendChild(assembly);
+            this.setWishlist();
+            if (this.haveAllAssemblyComponents()) {
+                // start making
+                this.setStatus('making');
+                this.workTime = this.recipe.time;
+                this.workCount = 0;
+            }
         }
     }
 
@@ -126,6 +168,30 @@ export class GadgetGrindWorker extends GadgetGrindElement {
         this.shadowRoot!.querySelector(`#${this.status}`)?.classList.toggle('status-active');
         this.status = s;
         this.shadowRoot!.querySelector(`#${this.status}`)?.classList.toggle('status-active');
+    }
+
+    setWishlist() {
+        const inventoryIcons: string[] = [];
+        for (let item of this.inventory!) {
+            inventoryIcons.push((item.getAttribute('icon') as string));
+        }
+        // Remove items from wishlist that are in the inventory
+        const updatedWishlist = this.wishlist?.filter(
+            (item) => !inventoryIcons!.includes(item)
+        );
+        this.wishlist = updatedWishlist;
+    }
+
+    haveAllAssemblyComponents() {
+        if (this.wishlist!.length === 0) return true;
+        return false;
+    }
+
+    public grabProduct() {
+        console.log('grab product');
+        this.setStatus('ready');
+        this.wishlist = this.recipe.components.slice();
+        return this.completed.pop();
     }
 
     attributeChangedCallback(

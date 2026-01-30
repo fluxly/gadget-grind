@@ -39,7 +39,7 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
                 height: 80px;
                 background-color: #333333;
                 opacity: 1.0;
-                border: 5px solid white;
+                border: 5px solid #aaaaaa;
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -62,7 +62,8 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
                 max-width: 250px;
                 min-height: 50px;
                 min-width: 250px;
-                overflow: scroll-y;
+                max-height: 250px;
+                overflow-y: scroll;
             }
             #parts-bin-wrapper {
                 display: flex;

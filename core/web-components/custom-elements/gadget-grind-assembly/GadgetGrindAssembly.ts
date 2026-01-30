@@ -9,9 +9,18 @@ export class GadgetGrindAssembly extends GadgetGrindElement {
             #container {
                 user-select: none; 
                 display: flex;
+                flex-direction: column;
                 align-items: center;
                 justify-content: center;
                 padding: 5px;
+            }
+            #components {
+                display: flex;
+                font-size: 10px;
+                opacity: 0.5;
+            }
+            #icon {
+                font-size: 20px;
             }
         </style>
         `;
@@ -19,7 +28,9 @@ export class GadgetGrindAssembly extends GadgetGrindElement {
     static readonly html = `
         <div id="container">
             <div id="icon">🧶</div>
-            <div id="components"></div>
+            <div id="components">
+            <slot></slot>
+            </div>
         </div>
         `;
 

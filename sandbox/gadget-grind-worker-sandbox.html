@@ -12,6 +12,11 @@
             position: absolute;
             bottom: 20px;
         }
+        #assemblies {
+            display: flex;
+            position: absolute;
+            top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -20,10 +25,22 @@
         <gadget-grind-worker id="worker-2"></gadget-grind-worker>
         <gadget-grind-worker icon="🐼" id="worker-3"></gadget-grind-worker>
     </div>
-
+    <div id="assemblies">
+        <gadget-grind-assembly icon="🏵"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🍔"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🏵"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🍔"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🏵"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🍔"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🏵"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🍔"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🏵"></gadget-grind-assembly>
+        <gadget-grind-assembly icon="🍔"></gadget-grind-assembly>
+    </div>
     <div id="controls">
         <button id="step">Step</button>
-        <button id="take-assembly">Take Assembly</button>
+        <button id="take-assembly">Pull Request</button>
+        <button id="grab-product">Grab Product</button>
     </div>
 </body>
 <script type="module">
@@ -31,12 +48,27 @@
     function step() {
         window.GadgetGrindMessenger.sendMessage('worker-1', 'step', '')
     }
-    function takeAssembly() {
-        window.GadgetGrindMessenger.sendMessage('worker-1', 'take-assembly', 'foo')
+    function pullRequest() {
+        let assembly = document.querySelector('#assemblies').lastElementChild;
+        if (assembly) {
+            window.GadgetGrindMessenger.sendMessage('worker-1', 'pull-request', assembly);
+        }
     }
-
+    function grabProduct() {
+        const worker = document.querySelector('#worker-1');
+        console.log(worker.status);
+        if (worker.status === 'complete') {
+            const product = worker.grabProduct();
+            console.log(product);
+            if (product) {
+                document.querySelector('#assemblies').appendChild(product);
+            }
+        }
+    }
+    
     document.querySelector('#step').addEventListener('click', step);
-    document.querySelector('#take-assembly').addEventListener('click', takeAssembly);
+    document.querySelector('#take-assembly').addEventListener('click', pullRequest);
+    document.querySelector('#grab-product').addEventListener('click', grabProduct);
 
 </script>
 </html>
