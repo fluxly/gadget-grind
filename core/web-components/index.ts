@@ -6,4 +6,3 @@ import { GadgetGrindMessenger } from '../GadgetGrindMessenger';
 import './custom-elements/gadget-grind-assembly/gadget-grind-assembly.ts';
 import './custom-elements/gadget-grind-worker/gadget-grind-worker.ts';
 import './custom-elements/gadget-grind-conveyor/gadget-grind-conveyor.ts';
-import './custom-elements/gadget-grind-conductor/gadget-grind-conductor.ts';
