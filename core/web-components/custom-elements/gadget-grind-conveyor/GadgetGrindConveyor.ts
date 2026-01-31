@@ -1,6 +1,7 @@
 import { GadgetGrindElement } from '../../common/GadgetGrindElement';
 import type { GadgetGrindWorker } from '../gadget-grind-worker/GadgetGrindWorker';
 import type { GadgetGrindAssembly } from '../gadget-grind-assembly/GadgetGrindAssembly';
+import type { GadgetGrindMessageDetail } from '../../../GadgetGrindMessenger';
 import { GadgetGrindEmoji } from '../../../GadgetGrindEmoji';
 import sharedStyles from '../../common/shared-styles';
 
@@ -291,8 +292,10 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
      * Delegates `step` commands to {@link handleStep}.
      * @param evt - The incoming {@link CustomEvent}.
      */
-    handleEvent = (evt: any) => {
-        if (evt.detail.cmd === 'step') {
+    handleEvent = (evt: Event) => {
+        const { cmd, content } = (evt as CustomEvent<GadgetGrindMessageDetail>).detail;
+        
+        if (cmd === 'step') {
             this.handleStep();
         }
     }

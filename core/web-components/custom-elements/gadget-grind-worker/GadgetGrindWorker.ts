@@ -1,5 +1,6 @@
 import { GadgetGrindElement } from '../../common/GadgetGrindElement';
 import { GadgetGrindEmoji } from '../../../GadgetGrindEmoji';
+import type { GadgetGrindMessageDetail } from '../../../GadgetGrindMessenger';
 import sharedStyles from '../../common/shared-styles';
 
 /**
@@ -213,13 +214,15 @@ export class GadgetGrindWorker extends GadgetGrindElement {
      *
      * @param evt - The incoming {@link CustomEvent} with `detail.cmd` and `detail.content`.
      */
-    handleEvent = (evt: any) => {
-        if (evt.detail.cmd === 'step') {
+    handleEvent = (evt: Event) => {
+        const { cmd, content } = (evt as CustomEvent<GadgetGrindMessageDetail>).detail;
+
+        if (cmd === 'step') {
             this.handleStep();
         }
-        if (evt.detail.cmd === 'pull-request') {
+        if (cmd === 'pull-request') {
             if (this.wishlist.length === 0) return;
-            let assembly = evt.detail.content;
+            let assembly = content as HTMLElement;
             this.inventory?.push(assembly);
             this.inventoryContainer?.appendChild(assembly);
             this.setWishlist();

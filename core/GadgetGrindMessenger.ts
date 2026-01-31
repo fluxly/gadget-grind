@@ -66,3 +66,9 @@ export const GadgetGrindMessenger: GadgetGrindMessengerType = {
         }
     }
 };
+
+export interface GadgetGrindMessageDetail {                                                                                                            
+      cmd: string;                                                                                                                                       
+      content: unknown;                                                                                                                                  
+  }   
+  
