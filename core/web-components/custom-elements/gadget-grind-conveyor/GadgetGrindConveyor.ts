@@ -4,16 +4,57 @@ import type { GadgetGrindAssembly } from '../gadget-grind-assembly/GadgetGrindAs
 import { GadgetGrindEmoji } from '../../../GadgetGrindEmoji';
 import sharedStyles from '../../common/shared-styles';
 
+/**
+ * The top-level orchestrator web component for the Gadget Grind factory
+ * simulation.
+ *
+ * Manages a moving conveyor belt of configurable length, coordinates two rows
+ * of workers (top and bottom), and collects finished products into a parts bin.
+ * On each `step` message the conveyor:
+ *
+ * 1. Rotates the belt — the last cell wraps to the front and receives a
+ *    randomly selected component (or remains empty).
+ * 2. Iterates over worker groups paired to each belt cell. Ready workers
+ *    whose wishlists match the cell's component receive a `pull-request`.
+ *    Workers with a completed product place it onto an empty cell.
+ * 3. Updates the parts-bin tally via a {@link MutationObserver}.
+ *
+ * Workers are slotted into the element as light-DOM children and redistributed
+ * into Shadow DOM worker cells on setup.
+ *
+ * @example
+ * ```html
+ * <gadget-grind-conveyor id="conveyor" length="3">
+ *   <gadget-grind-worker id="w1"></gadget-grind-worker>
+ *   <gadget-grind-worker id="w2"></gadget-grind-worker>
+ *   <gadget-grind-worker id="w3"></gadget-grind-worker>
+ *   <gadget-grind-worker id="w4"></gadget-grind-worker>
+ *   <gadget-grind-worker id="w5"></gadget-grind-worker>
+ *   <gadget-grind-worker id="w6"></gadget-grind-worker>
+ * </gadget-grind-conveyor>
+ * ```
+ *
+ * @extends GadgetGrindElement
+ * @element gadget-grind-conveyor
+ */
 export class GadgetGrindConveyor extends GadgetGrindElement {
 
+    /** Upper bound for the configurable belt length. */
     static readonly maxLength = 10;
-    static readonly delay = 500;
+    /** Milliseconds to pause between conveyor movement and worker processing. */
+    static readonly delay = 100;  // msec
+    /** Number of entries in the component library (including the empty slot). */
     static readonly componentLibraryLength = 3;
+    /**
+     * Weighted list of components that can spawn on the belt each step.
+     * Each entry defines an HTML string and a weight for random selection.
+     */
     static componentLibrary = [
         { component : '<gadget-grind-assembly icon="🏵"></gadget-grind-assembly>', weight: 1 },
         { component : '<gadget-grind-assembly icon="🍔"></gadget-grind-assembly>', weight: 1 },
         { component : '', weight: 1 }
     ]
+    /** @internal Scoped styles for the conveyor component. */
     static readonly localStyles = `
         <style>
             #container-wrapper {
@@ -83,6 +124,7 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
         </style>
         `;
   
+    /** @internal Shadow DOM markup template. */
     static readonly html = `
     <div id="container-wrapper">
         <div id="container">
@@ -110,13 +152,21 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
     </div>
         `;
 
+    /** Reference to the root container inside the Shadow DOM. */
     private container: HTMLElement | null = null;
+    /** Number of cells on the conveyor belt (set via the `length` attribute). */
     private length: number = 6;
+    /** Current rotation index used to track belt position. */
     private conveyorIndex: number = 0;
+    /** Groups of worker elements mapped to conveyor cell positions. */
     private workerGroups: HTMLElement[][] | null = [];
+    /** Observer that triggers a parts-bin tally when products are deposited. */
     private partsObserver?: MutationObserver;
 
-    static get observedAttributes(): string[] { 
+    /**
+     * Attributes observed by this element: inherited `x`, `y` plus `length`.
+     */
+    static get observedAttributes(): string[] {
         return [...super.baseObservedAttributes, 'length' ];
     }
 
@@ -131,18 +181,26 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
         this.initialize();
     }
   
+    /** Called when the element is inserted into the DOM. */
     connectedCallback() {
         this.setup();
     }
-    
+
+    /** Called when the element is removed from the DOM. */
     disconnectedCallback() {
         this.teardown();
     }
-    
+
+    /** Caches Shadow DOM element references. */
     initialize() {
         this.container = this.shadowRoot!.querySelector('#container');
     }
-  
+
+    /**
+     * Subscribes to messages, attaches event listeners, sets up the
+     * {@link MutationObserver} on the parts bin, and distributes slotted
+     * worker elements into their respective Shadow DOM cells.
+     */
     setup = () => {
         this.observedMessages = [`${this.id}`, 'step'];
         this.subscribe(this.observedMessages); 
@@ -172,10 +230,18 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
         }
     }
     
+    /** Cleans up message subscriptions. */
     teardown = () => {
         this.unsubscribe(this.observedMessages);
     }
 
+    /**
+     * Executes a single simulation timestep:
+     * 1. Rotates the conveyor belt and spawns a random component.
+     * 2. Pauses briefly for visual effect.
+     * 3. Iterates over worker groups — offers components to ready workers
+     *    and places finished products onto empty cells.
+     */
     handleStep = async () => {
         // move the conveyor
         let lastCell = this.shadowRoot!.querySelector('#conveyor')!.lastElementChild as HTMLElement;
@@ -220,12 +286,20 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
         }
     }
 
+    /**
+     * Handles incoming custom events dispatched via the messenger.
+     * Delegates `step` commands to {@link handleStep}.
+     * @param evt - The incoming {@link CustomEvent}.
+     */
     handleEvent = (evt: any) => {
         if (evt.detail.cmd === 'step') {
             this.handleStep();
         }
     }
 
+    /**
+     * Counts the items in the parts bin by icon and updates the tally display.
+     */
     tallyPartsBin() {
         const partsBin = this.shadowRoot!.querySelector('#parts-bin');
         const tallyContainer = this.shadowRoot!.querySelector('#parts-bin-count');

@@ -24,3 +24,12 @@ body {
     position: absolute;
     bottom: 20px;
 }
+#step-count {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-size: 24px;
+    font-weight: 700;
+    font-family: Quantico;
+    color: #ffffff;
+}
