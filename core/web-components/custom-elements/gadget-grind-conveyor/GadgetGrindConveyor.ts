@@ -7,6 +7,7 @@ import sharedStyles from '../../common/shared-styles';
 export class GadgetGrindConveyor extends GadgetGrindElement {
 
     static readonly maxLength = 10;
+    static readonly delay = 500;
     static readonly componentLibraryLength = 3;
     static componentLibrary = [
         { component : '<gadget-grind-assembly icon="🏵"></gadget-grind-assembly>', weight: 1 },
@@ -73,7 +74,7 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
                 align-items: center;
                 justify-content: center;
             }
-            #count {
+            #parts-bin-count {
                 width: 80%;
                 display: flex;
                 align-items: center;
@@ -89,30 +90,21 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
                 <div id="worker-cell-1" class="worker-cell group-1"></div>
                 <div id="worker-cell-2" class="worker-cell group-2"></div>
                 <div id="worker-cell-3" class="worker-cell group-3"></div>
-                <div id="worker-cell-4" class="worker-cell group-4"></div>
-                <div id="worker-cell-5" class="worker-cell group-5"></div>
-                <div id="worker-cell-6" class="worker-cell group-6"></div>
             </div>
             <div id="conveyor">
-                <div id="cell-2" style="background-color: #222222;" class="conveyor-cell"></div>
-                <div id="cell-3" style="background-color: #444444;" class="conveyor-cell"></div>
-                <div id="cell-4" style="background-color: #666666;" class="conveyor-cell"></div>
-                <div id="cell-5" style="background-color: #888888;" class="conveyor-cell"></div>
-                <div id="cell-6" style="background-color: #aaaaaa;" class="conveyor-cell"></div>
                 <div id="cell-1" style="background-color: #000000;" class="conveyor-cell"></div>
+                <div id="cell-2" style="background-color: #444444;" class="conveyor-cell"></div>
+                <div id="cell-3" style="background-color: #888888;" class="conveyor-cell"></div>
             </div>
             <div id="worker-row-bottom" class="worker-row">
-                <div id="worker-cell-7" class="worker-cell group-1"></div>
-                <div id="worker-cell-8" class="worker-cell group-2"></div>
-                <div id="worker-cell-9" class="worker-cell group-3"></div>
-                <div id="worker-cell-10" class="worker-cell group-4"></div>
-                <div id="worker-cell-11" class="worker-cell group-5"></div>
-                <div id="worker-cell-12" class="worker-cell group-6"></div>
+                <div id="worker-cell-4" class="worker-cell group-1"></div>
+                <div id="worker-cell-5" class="worker-cell group-2"></div>
+                <div id="worker-cell-6" class="worker-cell group-3"></div>
             </div>
         </div>
         <div id="parts-bin-wrapper">
             <div id="parts-bin"></div>
-            <div id="count"><span>🏵: 0</span><span>🍔: 0</span></div>
+            <div id="parts-bin-count"></div>
         </div>
         <slot></slot>
     </div>
@@ -122,6 +114,7 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
     private length: number = 6;
     private conveyorIndex: number = 0;
     private workerGroups: HTMLElement[][] | null = [];
+    private partsObserver?: MutationObserver;
 
     static get observedAttributes(): string[] { 
         return [...super.baseObservedAttributes, 'length' ];
@@ -155,6 +148,21 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
         this.subscribe(this.observedMessages); 
         this.addEventListener(`${this.id}`, this.handleEvent);
         this.addEventListener('step', this.handleStep);
+        
+        this.partsObserver = new MutationObserver(mutations => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    this.tallyPartsBin();
+                }
+            }
+        });
+
+        this.partsObserver.observe(
+            this.shadowRoot!.querySelector('#parts-bin') as HTMLElement, {
+                childList: true
+            }
+        );
+
         const slot = this.shadowRoot!.querySelector('slot');
         const workers = slot?.assignedElements() ?? [];
         let count = 0;
@@ -180,7 +188,7 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
         lastCell.innerHTML = htmlString;
 
         // delay so we can see them
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, GadgetGrindConveyor.delay));
 
         // Iterate over cell groups and query status and wishlist
         this.conveyorIndex = (this.conveyorIndex + 1) % this.length;
@@ -216,6 +224,23 @@ export class GadgetGrindConveyor extends GadgetGrindElement {
         if (evt.detail.cmd === 'step') {
             this.handleStep();
         }
+    }
+
+    tallyPartsBin() {
+        const partsBin = this.shadowRoot!.querySelector('#parts-bin');
+        const tallyContainer = this.shadowRoot!.querySelector('#parts-bin-count');
+        let tallyDisplay = `<span>🏵: 0</span><span>🍔: 0</span>`;
+        const counts: Record<string, number> = Object.create(null);
+
+        const n = partsBin?.children?.length ?? 0;
+
+        for (let i = 0; i < n; i++) {
+            const icon = (partsBin?.children[i] as Element).getAttribute('icon');
+            if (!icon) continue;
+
+            counts[icon] = (counts[icon] || 0) + 1;
+        }
+        tallyContainer!.innerHTML = JSON.stringify(counts);
     }
 
     attributeChangedCallback(

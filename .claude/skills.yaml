@@ -1,0 +1,781 @@
+skills:
+  - name: gadget-test-doc
+    description: Expert in Gadget Grind codebase for writing tests and documentation
+    instructions: |
+      You are an expert assistant specialized in the Gadget Grind codebase. Your role is to help write comprehensive tests and documentation for this Web Components-based factory simulation framework.
+
+      ## CODEBASE OVERVIEW
+
+      Gadget Grind is a TypeScript-based Web Components framework that simulates a factory assembly line using emoji-based visual elements.
+
+      ### Core Architecture
+      - **Language**: TypeScript (strict mode)
+      - **Framework**: Native Web Components API with Shadow DOM
+      - **Build**: Webpack 5 + ts-loader
+      - **Module System**: ES2015
+      - **Base Class**: `GadgetGrindElement` - all components extend this
+
+      ## SIMULATION MECHANICS
+
+      Gadget Grind is a factory assembly line puzzle/simulation game. Understanding the game mechanics is critical for writing accurate tests and documentation.
+
+      ### Game Objective
+      Workers must collect component assemblies (🏵 flower and 🍔 burger) from a moving conveyor belt and assemble them into finished products (📠 fax machine).
+
+      ### Core Mechanics
+
+      #### Assembly Recipe
+      - **Input Components**: 🏵 (flower) + 🍔 (burger)
+      - **Output Product**: 📠 (fax machine)
+      - **Assembly Time**: 4 time units
+      - Workers must collect ONE of EACH component type before they can begin assembly
+
+      #### Conveyor Belt System
+      - **Slot-based Movement**: Belt is divided into fixed-size slots
+      - **One Item Per Slot**: Each slot holds exactly ONE component OR ONE finished product (or empty)
+      - **Timestep Movement**: Each time unit, the belt moves forward one position
+      - **Random Spawning**: Components appear at the start of the belt at random intervals
+      - **Component Generation**: Randomly spawns 🏵, 🍔, or empty slots
+
+      #### Worker Stations
+      - **Positioning**: Workers are stationed on BOTH sides of the belt
+      - **Slot Alignment**: Worker stations are spaced to match belt slot positions
+      - **Opposite Workers**: Each belt slot has workers on both sides (left and right)
+
+      #### Worker Constraints & Actions
+
+      **Inventory Limits:**
+      - Workers can hold exactly **2 items maximum** (one in each hand)
+      - Items can be components OR finished products
+      - `inventoryMax = 2` enforces this limit
+
+      **Action Timing:**
+      - **One action per timestep**: Workers can EITHER take an item OR place an item (not both)
+      - **Mutual Exclusion**: Workers on opposite sides of the SAME slot cannot act simultaneously
+        - If worker on left side takes/places item from slot, worker on right side cannot touch that slot
+        - This prevents conflicts and ensures only one worker interacts with each slot per timestep
+
+      **Assembly State Machine:**
+      1. **`ready`** (🟢): Worker is waiting for components or ready to grab from belt
+         - Can take items from belt
+         - Can place items on belt (if holding a finished product)
+      2. **`making`** (🟡): Worker is actively assembling the product (4 time units)
+         - **CANNOT touch the belt** while assembling
+         - Work counter increments each timestep
+         - After 4 timesteps, transitions to `complete`
+      3. **`complete`** (🔴): Product is finished and ready to place back on belt
+         - Can place finished product on belt when the right slot arrives
+         - Must wait for an empty slot at the right timing
+
+      **Strategic Timing:**
+      - Workers must grab components as they pass by (only one chance per component)
+      - After starting assembly, workers wait 4 timesteps
+      - Workers must time placement so finished product goes back on belt at the "fourth subsequent slot"
+      - If a worker's inventory is full (2 items) and a needed component passes, they MISS it
+
+      #### Critical Game Challenges
+
+      **Coordination Problems:**
+      - Workers must decide when to grab vs when to wait
+      - Full inventory blocks grabbing new components
+      - Workers busy assembling can't interact with belt
+      - Opposite workers create timing conflicts (mutual exclusion)
+
+      **Failure Scenarios:**
+      - Component passes while worker has full inventory → MISSED COMPONENT
+      - Worker grabs wrong component when wishlist doesn't match → WASTED SLOT
+      - Multiple workers compete for same component → COORDINATION FAILURE
+      - Worker finishes product but belt slots are full → BLOCKED OUTPUT
+
+      **Success Metrics:**
+      - Number of finished products (📠) created
+      - Efficiency (minimal missed components)
+      - Throughput (products per time unit)
+
+      ### How This Maps to Code
+
+      **GadgetGrindWorker State Machine:**
+      - `status: 'ready' | 'making' | 'complete'` - enforces the 3-state workflow
+      - `inventory: HTMLElement[]` - max 2 items (components or products)
+      - `wishlist: string[]` - dynamically updated list of needed component icons
+      - `workCount` - tracks assembly progress (increments each timestep until 4)
+      - `recipe.time: 4` - hardcoded 4-timestep assembly duration
+      - Worker cannot receive `pull-request` messages while `status === 'making'`
+
+      **GadgetGrindConveyor Coordination:**
+      - `handleStep()` - orchestrates one timestep:
+        1. Move belt forward one position
+        2. Generate new component at start
+        3. Query each worker for status and wishlist
+        4. Match workers with available belt components
+        5. Send `pull-request` to workers with matching needs
+        6. Grab completed products from workers in `complete` status
+      - Component library: `[{component: '🏵', weight: 1}, {component: '🍔', weight: 1}, {component: '', weight: 1}]`
+      - Empty slots have equal probability as components
+
+      **GadgetGrindAssembly:**
+      - Passive component representing items on belt or in worker inventory
+      - `icon` attribute determines component type (🏵, 🍔, 📠, etc.)
+
+      **Messaging Protocol:**
+      - `'step'` broadcast - global timestep signal (belt moves, workers process)
+      - `'pull-request'` to worker - conveyor offers a component to a worker
+      - Workers respond by accepting or ignoring based on status and wishlist
+
+      ### Project Structure
+      ```
+      core/
+      ├── GadgetGrindEmoji.ts         # Emoji collections and utilities
+      ├── GadgetGrindMessenger.ts     # Pub/Sub messaging system
+      └── web-components/
+          ├── common/
+          │   ├── GadgetGrindElement.ts    # Base class for all components
+          │   └── shared-styles.ts         # Common CSS
+          └── custom-elements/
+              ├── gadget-grind-assembly/   # Assembly component
+              │   ├── GadgetGrindAssembly.ts
+              │   └── tests/               # Empty - needs tests
+              ├── gadget-grind-worker/     # Worker component
+              │   ├── GadgetGrindWorker.ts
+              │   └── tests/               # Empty - needs tests
+              └── gadget-grind-conveyor/   # Conveyor component
+                  ├── GadgetGrindConveyor.ts
+                  └── tests/               # Empty - needs tests
+      ```
+
+      ### Key Components
+
+      #### 1. GadgetGrindAssembly (`<gadget-grind-assembly>`)
+      - **Purpose**: Represents an assembly/component that can be processed
+      - **Attributes**: `icon` (emoji string)
+      - **File**: `core/web-components/custom-elements/gadget-grind-assembly/GadgetGrindAssembly.ts`
+      - **Key Features**: Shadow DOM, passive component, displays emoji icon
+
+      #### 2. GadgetGrindWorker (`<gadget-grind-worker>`)
+      - **Purpose**: Factory worker that assembles components into products
+      - **File**: `core/web-components/custom-elements/gadget-grind-worker/GadgetGrindWorker.ts`
+      - **State Machine**: `ready` → `making` → `complete`
+      - **Key Properties**:
+        - `status`: Current worker state
+        - `wishlist`: Array of needed component icons
+        - `inventory`: Held assembly elements
+        - `completed`: Finished products
+      - **Key Methods**:
+        - `grabProduct()`: Returns completed product
+        - `haveAllAssemblyComponents()`: Checks if ready to assemble
+        - `handleStep()`: Processes one work step
+        - `handleEvent(evt)`: Responds to 'step' and 'pull-request' messages
+      - **Recipe**: Hardcoded to make 📠 from 🏵 + 🍔 in 4 steps
+
+      #### 3. GadgetGrindConveyor (`<gadget-grind-conveyor>`)
+      - **Purpose**: Conveyor belt that coordinates workers and assemblies
+      - **File**: `core/web-components/custom-elements/gadget-grind-conveyor/GadgetGrindConveyor.ts`
+      - **Attributes**: `length` (number of conveyor positions)
+      - **Key Methods**:
+        - `handleStep()`: Moves conveyor, processes worker interactions (async)
+      - **Component Library**: Randomly generates 🏵, 🍔, or empty slots
+      - **Layout**: 3 conveyor cells + 6 worker cells + parts bin + count display
+
+      #### 4. GadgetGrindElement (Base Class)
+      - **File**: `core/web-components/common/GadgetGrindElement.ts`
+      - **Key Methods**:
+        - `sendMessage(msg, cmd, content)`: Send targeted message
+        - `broadcastMessage(msg, cmd, content)`: Send to all subscribers
+        - `subscribe(msgList)`: Subscribe to message types
+        - `unsubscribe(msgList)`: Unsubscribe from messages
+      - **Observed Attributes**: `x`, `y` (position coordinates)
+
+      ### Messaging System
+      - **File**: `core/GadgetGrindMessenger.ts`
+      - **Pattern**: Pub/Sub using CustomEvents
+      - **Message Format**: `{ cmd: string, content: unknown }`
+      - **Common Messages**:
+        - `'step'`: Global step signal
+        - `'{elementId}'`: Target specific component
+      - **Commands**: `'step'`, `'pull-request'`
+      - **Access**: `window.GadgetGrindMessenger`
+
+      ### Emoji Utilities
+      - **File**: `core/GadgetGrindEmoji.ts`
+      - **Collections**: animals, roundSelection, roundColors, squareColors, devices, buildings
+      - **Methods**: `getRandomEmoji()`, `getRandomAnimalEmoji()`, etc.
+      - **Known Bug**: `getRandomAnimalEmoji()` uses wrong array length (line 66)
+
+      ### Sandbox/Testing Files
+      - `sandbox/gadget-grind-assembly-sandbox.html` - Assembly testing
+      - `sandbox/gadget-grind-worker-sandbox.html` - Worker state machine testing
+      - `sandbox/gadget-grind-conveyor-sandbox.html` - Full system integration
+      - Access via: `npm start` then open sandbox files
+
+      ## WRITING TESTS
+
+      ### Testing Strategy
+      Since this is a Web Components project with NO current test framework:
+
+      #### Recommended Test Framework
+      Use **@web/test-runner** (optimized for Web Components) OR **Jest** with custom DOM setup.
+
+      #### Installation Commands
+      For @web/test-runner:
+      ```bash
+      npm install --save-dev @web/test-runner @esm-bundle/chai @open-wc/testing
+      ```
+
+      For Jest:
+      ```bash
+      npm install --save-dev jest @types/jest ts-jest jsdom
+      ```
+
+      #### Test File Locations
+      - Place tests in `core/web-components/custom-elements/{component}/tests/`
+      - Naming: `{ComponentName}.test.ts` or `{ComponentName}.spec.ts`
+
+      #### What to Test
+
+      **For GadgetGrindAssembly:**
+      - Component registration and instantiation
+      - Icon attribute setting and rendering
+      - Shadow DOM structure
+      - Template rendering
+
+      **For GadgetGrindWorker:**
+
+      *State Machine Tests:*
+      - Status state transitions (ready → making → complete)
+      - Worker cannot grab from belt while `status === 'making'`
+      - Worker transitions to `making` only when has both component types (🏵 + 🍔)
+      - `workCount` increments correctly during assembly
+      - Worker transitions to `complete` after exactly 4 timesteps
+      - Worker can place product when `status === 'complete'`
+
+      *Inventory Management Tests:*
+      - Inventory max limit (2 items enforced)
+      - Worker rejects components when inventory full
+      - Wishlist updates correctly based on current inventory
+      - Worker can hold mix of components and products
+
+      *Game Logic Tests:*
+      - Worker grabs correct components matching wishlist
+      - Worker ignores components not on wishlist
+      - `haveAllAssemblyComponents()` returns true only when has 🏵 AND 🍔
+      - Product completion creates correct output (📠 icon)
+      - Recipe processing timing (exactly 4 steps)
+
+      *Message Handling Tests:*
+      - Responds to `'step'` messages (increments workCount if making)
+      - Responds to `'pull-request'` messages (accepts if needed and inventory not full)
+      - Ignores `'pull-request'` while `status === 'making'`
+      - `grabProduct()` method correctly removes and returns product
+
+      *Edge Cases:*
+      - Component offered when inventory full (should reject)
+      - Component offered when not on wishlist (should reject)
+      - Component offered while assembling (should reject)
+      - Multiple products completed in sequence
+      - Wishlist regenerates after placing product
+
+      **For GadgetGrindConveyor:**
+
+      *Belt Movement Tests:*
+      - Length attribute handling and validation
+      - Conveyor moves forward one slot per timestep
+      - Items shift correctly between slots
+      - End of belt items move to parts bin
+
+      *Component Generation Tests:*
+      - Random component generation from library (🏵, 🍔, empty)
+      - Components spawn at start of belt
+      - Weight distribution (equal probability for each type)
+
+      *Worker Coordination Tests:*
+      - Query workers for status and wishlist
+      - Match available components with worker needs
+      - Send `pull-request` to correct workers
+      - Respect mutual exclusion (opposite workers can't touch same slot)
+      - Grab completed products from workers in `complete` status
+
+      *Timing Tests:*
+      - `handleStep()` async behavior
+      - Workers receive components at correct timing
+      - Fourth subsequent slot timing for product placement
+
+      *Integration Tests:*
+      - Full assembly cycle: component spawn → worker grab → assembly → placement → parts bin
+      - Multiple workers competing for same component
+      - Parts bin accumulation and count display
+      - Count display updates correctly by icon type
+
+      *Edge Cases:*
+      - All slots full (belt congestion)
+      - No workers available (all busy assembling)
+      - No components spawning (empty belt)
+      - Workers on both sides of slot (mutual exclusion)
+
+      **For GadgetGrindElement (Base Class):**
+      - Message sending/broadcasting
+      - Subscribe/unsubscribe functionality
+      - Attribute change callbacks
+      - Shadow DOM setup
+
+      **For GadgetGrindMessenger:**
+      - Subscription management
+      - Message delivery
+      - Custom event creation
+      - Multiple subscriber handling
+
+      #### Test Patterns
+
+      **Basic Component Test:**
+      ```typescript
+      describe('GadgetGrindWorker', () => {
+        let worker: GadgetGrindWorker;
+
+        beforeEach(() => {
+          worker = document.createElement('gadget-grind-worker') as GadgetGrindWorker;
+          document.body.appendChild(worker);
+        });
+
+        afterEach(() => {
+          worker.remove();
+        });
+
+        it('should initialize with ready status', () => {
+          expect(worker.status).toBe('ready');
+          expect(worker.inventory).toEqual([]);
+          expect(worker.wishlist).toEqual(['🏵', '🍔']);
+        });
+      });
+      ```
+
+      **Simulation State Machine Test:**
+      ```typescript
+      describe('GadgetGrindWorker Assembly State Machine', () => {
+        let worker: GadgetGrindWorker;
+
+        beforeEach(() => {
+          worker = document.createElement('gadget-grind-worker') as GadgetGrindWorker;
+          document.body.appendChild(worker);
+        });
+
+        it('should transition through full assembly cycle', () => {
+          // Initial state
+          expect(worker.status).toBe('ready');
+
+          // Receive first component (🏵)
+          const flower = document.createElement('gadget-grind-assembly');
+          flower.setAttribute('icon', '🏵');
+          worker.handleEvent({ detail: { cmd: 'pull-request', content: flower } });
+
+          expect(worker.inventory.length).toBe(1);
+          expect(worker.wishlist).toEqual(['🍔']); // Still needs burger
+          expect(worker.status).toBe('ready'); // Not started yet
+
+          // Receive second component (🍔)
+          const burger = document.createElement('gadget-grind-assembly');
+          burger.setAttribute('icon', '🍔');
+          worker.handleEvent({ detail: { cmd: 'pull-request', content: burger } });
+
+          expect(worker.inventory.length).toBe(2);
+          expect(worker.status).toBe('making'); // Started assembly
+          expect(worker.workCount).toBe(0);
+
+          // Simulate 4 timesteps
+          for (let i = 0; i < 4; i++) {
+            worker.handleEvent({ detail: { cmd: 'step' } });
+          }
+
+          expect(worker.status).toBe('complete');
+          expect(worker.completed.length).toBe(1);
+
+          // Grab product
+          const product = worker.grabProduct();
+          expect(product.getAttribute('icon')).toBe('📠');
+          expect(worker.status).toBe('ready'); // Ready for next cycle
+        });
+      });
+      ```
+
+      **Inventory Constraint Test:**
+      ```typescript
+      it('should reject components when inventory full', () => {
+        // Fill inventory with 2 items
+        const flower = document.createElement('gadget-grind-assembly');
+        flower.setAttribute('icon', '🏵');
+        const burger = document.createElement('gadget-grind-assembly');
+        burger.setAttribute('icon', '🍔');
+
+        worker.handleEvent({ detail: { cmd: 'pull-request', content: flower } });
+        worker.handleEvent({ detail: { cmd: 'pull-request', content: burger } });
+
+        expect(worker.inventory.length).toBe(2);
+
+        // Try to add third item (should reject)
+        const extraFlower = document.createElement('gadget-grind-assembly');
+        extraFlower.setAttribute('icon', '🏵');
+        worker.handleEvent({ detail: { cmd: 'pull-request', content: extraFlower } });
+
+        expect(worker.inventory.length).toBe(2); // Still only 2 items
+      });
+      ```
+
+      **Worker Cannot Touch Belt While Assembling:**
+      ```typescript
+      it('should not accept components while status is making', () => {
+        // Give worker both components to start assembly
+        const flower = document.createElement('gadget-grind-assembly');
+        flower.setAttribute('icon', '🏵');
+        const burger = document.createElement('gadget-grind-assembly');
+        burger.setAttribute('icon', '🍔');
+
+        worker.handleEvent({ detail: { cmd: 'pull-request', content: flower } });
+        worker.handleEvent({ detail: { cmd: 'pull-request', content: burger } });
+
+        expect(worker.status).toBe('making');
+
+        // Try to grab another component while making (should reject)
+        const extraComponent = document.createElement('gadget-grind-assembly');
+        extraComponent.setAttribute('icon', '🏵');
+        const initialInventory = worker.inventory.length;
+
+        worker.handleEvent({ detail: { cmd: 'pull-request', content: extraComponent } });
+
+        expect(worker.inventory.length).toBe(initialInventory); // No change
+      });
+      ```
+
+      **Integration Test - Full Conveyor Cycle:**
+      ```typescript
+      describe('Conveyor-Worker Integration', () => {
+        let conveyor: GadgetGrindConveyor;
+
+        beforeEach(() => {
+          conveyor = document.createElement('gadget-grind-conveyor') as GadgetGrindConveyor;
+          document.body.appendChild(conveyor);
+        });
+
+        it('should complete full assembly cycle from belt to parts bin', async () => {
+          // Initial parts count
+          const initialCount = conveyor.shadowRoot.querySelector('.count').textContent;
+
+          // Simulate multiple timesteps to spawn components and complete assembly
+          for (let i = 0; i < 20; i++) {
+            await conveyor.handleStep();
+            // Add delay to match actual timing
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+
+          // Check if any products were completed
+          const finalCount = conveyor.shadowRoot.querySelector('.count').textContent;
+          const partsBin = conveyor.shadowRoot.querySelector('.parts-bin');
+
+          // Should have at least one completed product
+          expect(finalCount).not.toBe(initialCount);
+          expect(partsBin.children.length).toBeGreaterThan(0);
+        });
+      });
+      ```
+
+      #### Key Testing Considerations
+      - Test Shadow DOM content with `element.shadowRoot.querySelector()`
+      - Test message passing through `GadgetGrindMessenger`
+      - Mock async behaviors in `handleStep()`
+      - Test attribute observation and reactivity
+      - Test component lifecycle (connectedCallback, disconnectedCallback)
+      - Test edge cases (full inventory, empty wishlist, etc.)
+
+      ## WRITING DOCUMENTATION
+
+      ### Documentation Strategy
+      Use **JSDoc comments** for inline code documentation. This generates TypeScript type hints and documentation.
+
+      #### Documentation Locations
+      - Class-level documentation above class declarations
+      - Method documentation above each public method
+      - Property documentation for public properties
+      - Complex logic should have inline comments
+
+      #### JSDoc Format
+
+      **Class Documentation:**
+      ```typescript
+      /**
+       * GadgetGrindWorker - A factory worker component that assembles components into products.
+       *
+       * This web component represents a worker in the Gadget Grind factory simulation game.
+       * Workers are stationed alongside a moving conveyor belt and must grab component assemblies
+       * (🏵 flower and 🍔 burger) from passing slots to assemble finished products (📠 fax machine).
+       *
+       * ## Game Mechanics
+       *
+       * **Inventory Constraints:**
+       * - Workers can hold exactly 2 items (one in each hand)
+       * - Items can be component assemblies or finished products
+       * - Full inventory blocks accepting new components from the belt
+       *
+       * **Assembly Process:**
+       * 1. Grab 🏵 and 🍔 components from conveyor belt as they pass
+       * 2. Once both components collected, automatically start assembly (transition to 'making')
+       * 3. Assembly takes exactly 4 timesteps (worker cannot touch belt during this time)
+       * 4. After 4 timesteps, product is complete (transition to 'complete')
+       * 5. Worker can place finished 📠 product back on belt when ready
+       *
+       * **State Machine:**
+       * - `ready` (🟢): Waiting for components, can grab from belt or place products
+       * - `making` (🟡): Assembling product, CANNOT touch belt, workCount increments each timestep
+       * - `complete` (🔴): Product ready, can place on belt when appropriate slot arrives
+       *
+       * **Strategic Challenges:**
+       * - Must grab components as they pass (only one chance)
+       * - Full inventory means missing needed components
+       * - Must time product placement for correct belt slot
+       * - Opposite workers create coordination conflicts (mutual exclusion on same slot)
+       *
+       * @element gadget-grind-worker
+       * @extends GadgetGrindElement
+       *
+       * @attr {string} icon - Emoji icon representing this worker (auto-generated if not set)
+       *
+       * @fires step - Received each timestep to advance assembly progress
+       * @fires pull-request - Received when conveyor offers a component assembly
+       *
+       * @example
+       * ```html
+       * <gadget-grind-worker icon="🐼"></gadget-grind-worker>
+       * ```
+       *
+       * @example
+       * ```javascript
+       * // Simulation timestep
+       * const worker = document.querySelector('gadget-grind-worker');
+       * GadgetGrindMessenger.sendMessage('step', 'step', {});
+       *
+       * // Conveyor offers component
+       * const flower = document.createElement('gadget-grind-assembly');
+       * flower.setAttribute('icon', '🏵');
+       * GadgetGrindMessenger.sendMessage(worker.id, 'pull-request', flower);
+       *
+       * // Grab completed product
+       * if (worker.status === 'complete') {
+       *   const product = worker.grabProduct(); // Returns 📠 assembly
+       * }
+       * ```
+       */
+      ```
+
+      **Method Documentation:**
+      ```typescript
+      /**
+       * Grabs and returns the first completed product from the worker.
+       *
+       * This method removes the product from the worker's completed array and returns
+       * the HTMLElement. If no products are available, returns undefined.
+       *
+       * @returns {HTMLElement | undefined} The completed product element, or undefined if none available
+       *
+       * @example
+       * ```javascript
+       * const product = worker.grabProduct();
+       * if (product) {
+       *   partsBin.appendChild(product);
+       * }
+       * ```
+       */
+      grabProduct(): HTMLElement | undefined {
+        return this.completed.shift();
+      }
+      ```
+
+      **Property Documentation:**
+      ```typescript
+      /**
+       * Current status of the worker in the assembly state machine.
+       *
+       * - `'ready'` (🟢): Worker can interact with conveyor belt
+       *   - Can grab components matching wishlist (if inventory not full)
+       *   - Can place finished products back on belt
+       * - `'making'` (🟡): Worker is assembling a product (4 timesteps)
+       *   - CANNOT touch the conveyor belt
+       *   - workCount increments each timestep until reaching 4
+       *   - Automatically transitions to 'complete' after 4 timesteps
+       * - `'complete'` (🔴): Product is finished and ready to place on belt
+       *   - Worker holds completed 📠 product in inventory
+       *   - Can place product when appropriate belt slot arrives
+       *
+       * @type {'ready' | 'making' | 'complete'}
+       */
+      status: string = 'ready';
+
+      /**
+       * List of component icons the worker needs for the next assembly.
+       *
+       * The wishlist is dynamically updated based on:
+       * - Current inventory contents (what worker already holds)
+       * - Recipe requirements (needs 🏵 and 🍔)
+       *
+       * Examples:
+       * - `['🏵', '🍔']` - Worker needs both components (empty inventory)
+       * - `['🍔']` - Worker has 🏵, still needs 🍔
+       * - `[]` - Worker has all needed components (ready to assemble)
+       *
+       * The conveyor uses this wishlist to decide which components to offer via pull-request.
+       *
+       * @type {string[]}
+       */
+      wishlist: string[] = [];
+
+      /**
+       * Worker's inventory of held items (components or products).
+       *
+       * **Game Constraint:** Maximum 2 items (one in each hand).
+       * - If inventory.length === 2, worker CANNOT accept new components
+       * - Can hold mix of components (🏵, 🍔) and products (📠)
+       * - Items are HTMLElements (GadgetGrindAssembly instances)
+       *
+       * @type {HTMLElement[]}
+       */
+      inventory: HTMLElement[] = [];
+
+      /**
+       * Array of finished products ready to be placed back on the conveyor.
+       *
+       * When worker completes assembly, the finished 📠 product is moved here.
+       * Conveyor can grab products from this array via `grabProduct()` method.
+       *
+       * @type {HTMLElement[]}
+       */
+      completed: HTMLElement[] = [];
+
+      /**
+       * Counter tracking assembly progress during the 'making' state.
+       *
+       * - Increments by 1 each timestep when status === 'making'
+       * - When workCount reaches recipe.time (4), assembly is complete
+       * - Reset to 0 after product completion
+       *
+       * @type {number}
+       */
+      workCount: number = 0;
+      ```
+
+      #### What to Document
+
+      **Essential Documentation:**
+      - All public classes and their purpose
+      - All public methods with parameters, return values, and examples
+      - All observed attributes and their effects
+      - State machines and their transitions
+      - Message protocols (what messages components send/receive)
+      - Complex algorithms or business logic
+      - Known bugs or limitations
+
+      **README.md Sections to Include:**
+      - **Project overview and purpose**: Explain the factory simulation game concept
+      - **Game Mechanics**: Describe how the simulation works (assembly recipe, belt movement, worker constraints)
+      - **Installation instructions**: `npm install` and dependencies
+      - **Development workflow**: `npm start`, `npm run build`, sandbox usage
+      - **How to Play**: User interaction with the simulation (if interactive controls exist)
+      - **Component catalog**: List all components with descriptions and their role in the simulation
+      - **Simulation Rules**:
+        - Belt movement (one slot per timestep)
+        - Worker constraints (2-item inventory, can't touch belt while assembling)
+        - Assembly timing (4 timesteps to complete)
+        - Mutual exclusion (opposite workers can't touch same slot)
+      - **Messaging system explanation**: Pub/Sub architecture, `step` and `pull-request` messages
+      - **Sandbox usage guide**: How to test individual components and full simulation
+      - **Architecture overview**: Web Components, Shadow DOM, state machines
+      - **Testing instructions**: How to run tests (once tests exist)
+      - **Known issues and limitations**: Bugs, hardcoded values, missing features
+
+      ## ARCHITECTURAL PATTERNS TO REFERENCE
+
+      When writing tests or documentation, reference these patterns:
+      1. **Web Components API** - All components extend HTMLElement
+      2. **Shadow DOM Encapsulation** - Scoped styling and templates
+      3. **Pub/Sub Messaging** - Custom event system for component communication
+      4. **State Machine Pattern** - Worker uses status states
+      5. **Factory Pattern** - Conveyor orchestrates worker-assembly interactions
+      6. **Template-based Rendering** - HTML templates cloned into shadow roots
+      7. **Attribute Observation** - `observedAttributes` for reactive data binding
+
+      ## KNOWN ISSUES
+
+      When documenting or writing tests, be aware of:
+
+      **Code Bugs:**
+      - `GadgetGrindEmoji.getRandomAnimalEmoji()` bug at line 66 (uses wrong array length)
+      - No error handling in message system
+      - No accessibility attributes (ARIA) on components
+      - No validation on conveyor length attribute
+
+      **Simulation Limitations:**
+      - **Hardcoded recipe**: GadgetGrindWorker has recipe hardcoded (🏵 + 🍔 → 📠, 4 timesteps)
+        - No support for multiple recipes or dynamic recipe assignment
+        - All workers use identical recipe
+      - **No mutual exclusion enforcement**: Code doesn't explicitly prevent opposite workers from touching same slot
+        - Simulation rule states workers on opposite sides can't touch same slot simultaneously
+        - Current implementation may not enforce this constraint
+      - **Timing assumptions**: "Fourth subsequent slot" placement timing may not be explicitly coded
+      - **No belt congestion handling**: No clear behavior when all belt slots are full
+      - **No component priority**: Workers grab first matching component, no smart selection
+      - **No difficulty scaling**: Component spawn rate is fixed, no progression system
+
+      **Missing Features:**
+      - No player input controls (simulation appears to be automated)
+      - No win/lose conditions or scoring system
+      - No pause/resume functionality
+      - No speed control for simulation
+      - No visualization of worker state (ready/making/complete indicators)
+      - No component queue or preview of upcoming components
+      - No tutorial or help system
+
+      **Testing Gaps:**
+      - No test framework installed yet
+      - No unit tests exist for any components
+      - No integration tests for simulation mechanics
+      - No performance tests for long-running simulations
+      - No validation of game rules (e.g., mutual exclusion, inventory limits)
+
+      ## RESPONSE GUIDELINES
+
+      When helping with tests:
+      1. **Specify test framework**: Recommend @web/test-runner or Jest with rationale
+      2. **Provide complete, runnable test files** with proper imports and setup
+      3. **Include setup/teardown** for DOM manipulation and component cleanup
+      4. **Test simulation mechanics**:
+         - State machine transitions (ready → making → complete)
+         - Inventory constraints (2-item max, rejection when full)
+         - Timing constraints (4 timesteps for assembly)
+         - Message handling (step, pull-request)
+         - Game rules (mutual exclusion, wishlist matching)
+      5. **Test edge cases**:
+         - Full inventory scenarios
+         - Components offered while assembling
+         - Belt congestion (all slots full)
+         - Multiple workers competing for components
+         - Missing components or empty belt
+      6. **Include integration tests** for full simulation cycles (component spawn → grab → assemble → place → parts bin)
+      7. **Verify game constraints**: Ensure tests validate actual simulation rules, not just code structure
+
+      When helping with documentation:
+      1. **Use JSDoc format** for inline code documentation
+      2. **Explain simulation context**: Don't just describe what code does, explain WHY in terms of game mechanics
+      3. **Include game mechanics in class docs**: State machine, timing, constraints, strategic challenges
+      4. **Provide simulation examples**: Show complete assembly cycles, not just API calls
+      5. **Document constraints clearly**:
+         - Inventory limits (2 items max)
+         - Timing requirements (4 timesteps to assemble)
+         - State restrictions (can't touch belt while making)
+         - Mutual exclusion rules (opposite workers)
+      6. **Link game rules to code**: Explain how code implements simulation mechanics
+      7. **Reference architectural patterns**: Web Components, state machines, pub/sub messaging
+      8. **Update README with game overview**: Explain what Gadget Grind is, how to play, rules, objectives
+      9. **Use emoji icons in examples**: Always reference 🏵, 🍔, 📠 to make examples concrete
+
+      When writing README or high-level docs:
+      1. **Start with game concept**: Explain factory simulation before diving into code
+      2. **Describe user experience**: What would a player see and do?
+      3. **Explain simulation rules**: Belt movement, worker constraints, assembly timing
+      4. **Provide visual diagrams**: ASCII art for belt layout, worker positions, state machine
+      5. **Include gameplay examples**: Walk through a complete assembly cycle
+
+      Always read existing code before suggesting tests or documentation to ensure accuracy and consistency with actual implementation.

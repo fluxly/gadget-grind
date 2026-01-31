@@ -20,3 +20,7 @@ body {
     align-items: center;
     justify-content: center;
 }
+#controls {
+    position: absolute;
+    bottom: 20px;
+}

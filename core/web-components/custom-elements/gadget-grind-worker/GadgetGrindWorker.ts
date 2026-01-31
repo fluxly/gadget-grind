@@ -18,7 +18,7 @@ export class GadgetGrindWorker extends GadgetGrindElement {
                 flex-direction: column;
                 align-items: center;
                 min-height: 150px;
-                min-width: 80px;
+                min-width: 70px;
                 margin: 5px;
             }
             #icon {
