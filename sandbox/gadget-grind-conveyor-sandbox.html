@@ -16,8 +16,20 @@
 </head>
 <body>
     <div id="page">
-        <gadget-grind-conveyor id="conveyor-1" length="6"></gadget-grind-conveyor>
-        <gadget-grind-conveyor id="conveyor-2" length="8"></gadget-grind-conveyor>
+        <gadget-grind-conveyor id="conveyor-1" length="6">
+            <gadget-grind-worker id="worker-1"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-2"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-3"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-4"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-5"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-6"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-7"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-8"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-9"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-10"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-11"></gadget-grind-worker>
+            <gadget-grind-worker id="worker-12"></gadget-grind-worker>
+        </gadget-grind-conveyor>
     </div>
 
     <div id="controls">
@@ -28,10 +40,12 @@
 <script type="module">
 
     function step1() {
-        window.GadgetGrindMessenger.sendMessage('conveyor-1', 'step', '')
+        window.GadgetGrindMessenger.sendMessage( 'step', '')
     }
     function step2() {
-        window.GadgetGrindMessenger.sendMessage('conveyor-2', 'step', '')
+        console.log('.');
+        window.GadgetGrindMessenger.sendMessage( 'step', '')
+        window.GadgetGrindMessenger.sendMessage('conveyor-1', 'step', '')
     }
 
     document.querySelector('#step-1').addEventListener('click', step1);

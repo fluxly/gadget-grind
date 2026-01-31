@@ -19,9 +19,6 @@ export class GadgetGrindAssembly extends GadgetGrindElement {
                 font-size: 10px;
                 opacity: 0.5;
             }
-            #icon {
-                font-size: 20px;
-            }
         </style>
         `;
   
@@ -35,7 +32,7 @@ export class GadgetGrindAssembly extends GadgetGrindElement {
         `;
 
     private container: HTMLElement | null = null;
-    private icon: string | null = null;
+    public icon: string | null = null;
 
     static get observedAttributes(): string[] { 
         return [...super.baseObservedAttributes, 'icon' ];

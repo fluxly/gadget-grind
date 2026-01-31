@@ -12,11 +12,14 @@ export class GadgetGrindWorker extends GadgetGrindElement {
                 user-select: none; 
                 font-size: 36px;
                 padding: 5px;
-                border: 1px dotted red;
+                border-radius: 20px;
+                background-color: rgba(255, 255, 255, 0.5);
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 min-height: 150px;
+                min-width: 80px;
+                margin: 5px;
             }
             #icon {
                 font-size: 36px;
@@ -24,10 +27,11 @@ export class GadgetGrindWorker extends GadgetGrindElement {
             #inventory, #status {
                 display: flex;
                 border: none;
-                font-size: 14px;
+                font-size: 24px;
             }
             .status {
                 display: none;
+                font-size: 14px;
             }
             .status-active {
                 display: block;
@@ -51,13 +55,13 @@ export class GadgetGrindWorker extends GadgetGrindElement {
     private container: HTMLElement | null = null;
     private inventoryContainer: HTMLElement | null = null;
     private icon: string | null = null;
-    private status: string = 'ready';
+    public status: string = 'ready';
     private weight: number = 100;
     private workTime: number = 4;
     private workCount: number = 0;
     private inventory: HTMLElement[] = [];
-    private wishlist: string[] = [];
-    private completed: HTMLElement[] = [];
+    public wishlist: string[] = [];
+    public completed: HTMLElement[] = [];
     private profile = {
         strength: 16,
         dexterity: 16,
@@ -99,14 +103,14 @@ export class GadgetGrindWorker extends GadgetGrindElement {
     }
   
     setup = () => {
-        this.observedMessages = [`${this.id}`];
+        this.observedMessages = [`${this.id}`, 'step'];
         this.subscribe(this.observedMessages); 
         this.inventoryContainer = this.shadowRoot!.querySelector('#inventory');
         this.shadowRoot!.querySelector('#icon')!.innerHTML = (this.icon as string);
         this.addEventListener(`${this.id}`, this.handleEvent);
+        this.addEventListener('step', this.handleStep);
         this.setStatus('ready');
         this.wishlist = this.recipe.components.slice();   // copy array
-        console.log(this.wishlist);
     }
     
     teardown = () => {
@@ -114,10 +118,8 @@ export class GadgetGrindWorker extends GadgetGrindElement {
     }
 
     handleStep = () => {
-        console.log('handle step');
         if (this.status === 'making') {
             this.workCount++;
-            console.log(this.workCount);
             if (this.workCount === this.workTime) {
                 this.finishProduct();
             }
@@ -133,23 +135,18 @@ export class GadgetGrindWorker extends GadgetGrindElement {
         this.inventoryContainer!.appendChild(product);
         // Move assemblies to the product
         for (let item of this.inventory) {
-            console.log(item);
             product.appendChild(item);
-            console.log(product);
         }
         this.inventory = [];
         this.completed.push(product);
-        console.log(this.completed);
         this.setStatus('complete');
     }
 
     handleEvent = (evt: any) => {
-        console.log(`${evt.type} ${evt.detail.cmd}`);
         if (evt.detail.cmd === 'step') {
             this.handleStep();
         }
         if (evt.detail.cmd === 'pull-request') {
-            console.log('pull-request');
             if (this.wishlist.length === 0) return;
             let assembly = evt.detail.content;
             this.inventory?.push(assembly);
@@ -187,11 +184,11 @@ export class GadgetGrindWorker extends GadgetGrindElement {
         return false;
     }
 
-    public grabProduct() {
-        console.log('grab product');
+    public grabProduct(): HTMLElement {
         this.setStatus('ready');
         this.wishlist = this.recipe.components.slice();
-        return this.completed.pop();
+        const returnval = (this.completed.pop() ?? null) as HTMLElement;
+        return returnval;
     }
 
     attributeChangedCallback(
